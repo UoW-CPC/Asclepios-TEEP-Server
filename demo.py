@@ -6,6 +6,9 @@ libc = cdll.LoadLibrary('libc.so.6')
 
 oe = cdll.LoadLibrary('host/demolib.so')
 
+oe.oe_result_str.argtypes = [c_int32]
+oe.oe_result_str.restype = c_char_p
+
 oe.create_enclave_bytes.restype = c_void_p
 oe.create_enclave_bytes.argtypes = [c_char_p, c_size_t]
 
@@ -39,9 +42,10 @@ def get_remote_report_with_pubkey(enclave:c_void_p) -> (bytes, bytes):
         byref(report), byref(reportlen)
     )
 
+    res = oe.oe_result_str(res)
     ret = ret.value
 
-    assert res == 0 and ret == 0, f"Couldn't get_remote_report_with_pubkey ({res}, {ret})."
+    assert res == b'OE_OK' and ret == 0, f"Couldn't get_remote_report_with_pubkey ({res}, , {ret})."
 
     b = bytes(key[0:keylen.value])
     r = bytes(report[0:reportlen.value])
@@ -60,9 +64,10 @@ def verify_report_and_set_pubkey(enclave : c_void_p, key:bytes, report : bytes):
         cast(key, c_uint8_p), len(key),
         cast(report, c_uint8_p), len(report))
 
+    res = oe.oe_result_str(res)
     ret = ret.value
 
-    assert res == 0, f"Couldn't call verify_report_and_set_pubkey ({res}, {ret})."
+    assert res == b'OE_OK', f"Couldn't call verify_report_and_set_pubkey ({res}, {ret})."
     return ret
 
 with open('enclave_a/enclave_a.signed', 'rb') as f:
