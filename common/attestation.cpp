@@ -9,7 +9,6 @@ Attestation::Attestation(Crypto* crypto, uint8_t* enclave_mrsigner)
 {
     m_crypto = crypto;
     m_enclave_mrsigner = enclave_mrsigner;
-    TRACE_ENCLAVE("Attestation created... / Lars");
 }
 
 /**
