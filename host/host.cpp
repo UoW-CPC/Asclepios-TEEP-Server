@@ -164,30 +164,6 @@ extern "C" int verifyreport(oe_enclave_t* enclave,
 
 }
 
-extern "C" int foo() {
-  int argc = 2;
-  const char* argv[3] =
-  {
-     "host",
-     "./enclave_a/enclave_a.signed",
-     "./enclave_b/enclave_b.signed"
-  };
-  oe_enclave_t* enclave_a = NULL;
-  char* bytes;
-  size_t bytes_len;
-  file_to_bytes(argv[1], &bytes, &bytes_len);
-  enclave_a = create_enclave_bytes(bytes, bytes_len);
-  uint8_t* pem_key = NULL;
-  size_t pem_key_size = 0;
-  uint8_t* remote_report = NULL;
-  size_t remote_report_size = 0;
-
-  getpubkey(enclave_a, &pem_key, &pem_key_size, &remote_report, &remote_report_size);
-  // return main(argc, argv);
-  return bytes_len;
-  
-}
-
 int main(int argc, const char* argv[])
 {
     oe_enclave_t* enclave_a = NULL;

@@ -17,7 +17,16 @@ enclave {
                                                                   size_t key_size,
                                                [in, count=remote_report_size] uint8_t *remote_report,
                                                size_t   remote_report_size);
-    };
+
+        public int seal_bytes([in, count=data_size] uint8_t* data,
+                            size_t data_size,
+                            [out] uint8_t** out,
+                            [out] size_t *out_size);
+        public int unseal_bytes([in, count=data_size] uint8_t* data,
+                            size_t data_size,
+                            [out] uint8_t** out,
+                            [out] size_t *out_size);
+        };
 
     //untrusted {
     //    no untrusted functions in this sample

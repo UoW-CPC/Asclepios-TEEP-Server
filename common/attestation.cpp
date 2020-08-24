@@ -5,6 +5,195 @@
 #include <string.h>
 #include "log.h"
 
+// for seal_bytes()
+#include <mbedtls/aes.h>
+#include <mbedtls/ctr_drbg.h>
+
+void dump(const uint8_t *d, size_t n)
+{
+  for(int i = 0; i<n; i++)
+    { printf("%02x%s", d[i],((i+1)%16==0)?"\n":""); }
+  if(n%16!=0) printf("\n");
+}
+
+
+#define IV_SIZE 16
+#define CIPHER_BLOCK_SIZE 16
+
+
+int random_bytes(uint8_t* b, size_t size)
+{
+    // intitalize crypto 
+    mbedtls_ctr_drbg_context m_ctr_drbg_contex;
+    mbedtls_entropy_context m_entropy_context;
+    const char pers[] = "random data string";  // needed by mbedtlis_ctr_dbrg_seed
+    unsigned char bts[size];
+
+    mbedtls_entropy_init(&m_entropy_context);
+    mbedtls_ctr_drbg_init(&m_ctr_drbg_contex);
+    
+    mbedtls_ctr_drbg_seed(
+      &m_ctr_drbg_contex,
+     mbedtls_entropy_func,
+     &m_entropy_context,
+     (unsigned char*)pers,
+     sizeof(pers));
+
+    // draw random numbers
+    int ret = mbedtls_ctr_drbg_random(&m_ctr_drbg_contex, bts, size);
+
+    mbedtls_entropy_free(&m_entropy_context);
+    mbedtls_ctr_drbg_free(&m_ctr_drbg_contex);
+    
+    if (ret !=0) {
+      TRACE_ENCLAVE("random_bytes failed! %d",ret);
+      return ret;
+    }
+
+    memcpy(b, bts, size);
+    return 0;
+}
+
+
+extern"C" int seal_bytes(const uint8_t* data, size_t data_size, uint8_t** out_data, size_t* out_data_len)
+{
+  int ret;
+
+  if (data_size % CIPHER_BLOCK_SIZE != 0)
+    {  TRACE_ENCLAVE("Bad input: the data size must be a multiple of %d.", CIPHER_BLOCK_SIZE);
+       return 1;
+    }
+  
+  // get key
+    int seal_policy = OE_SEAL_POLICY_PRODUCT; // or POLICY_UNIQUE;
+    uint8_t* seal_key;    
+    size_t seal_key_size; 
+    uint8_t* key_info;    
+    size_t key_info_size; 
+    oe_result_t result;
+
+    result = oe_get_seal_key_by_policy(
+      (oe_seal_policy_t)seal_policy, &seal_key, &seal_key_size, &key_info, &key_info_size);
+    if (result != OE_OK)
+      {
+        TRACE_ENCLAVE("got error from get_seal_key_by_policy: %s", (char*)oe_result_str(result));
+        return ret;
+      }
+
+
+    uint8_t* output_data = (uint8_t*)oe_host_malloc(IV_SIZE+data_size);
+    if(output_data == NULL)
+      {
+        TRACE_ENCLAVE("Error: malloc failed");
+        return 1;
+      }
+    memset(output_data, 0, data_size);
+    
+    // create a random IV stored in the first bytes of the output data
+    uint8_t* iv = output_data;
+    ret = random_bytes(iv, IV_SIZE);
+    if (ret != 0)  { return ret; }
+    
+    uint8_t local_iv[IV_SIZE];
+    memcpy(local_iv, iv, IV_SIZE);
+
+    // encrypt message ------------------------------
+
+    mbedtls_aes_context aescontext;
+    mbedtls_aes_init(&aescontext);
+    mbedtls_aes_setkey_enc(&aescontext, seal_key, seal_key_size*8);
+
+    ret = mbedtls_aes_crypt_cbc(
+        &aescontext,
+        MBEDTLS_AES_ENCRYPT,
+        data_size,        // input data length in bytes,
+        local_iv,        // Initialization vector (updated after use)
+        data,
+        output_data+IV_SIZE); // store encrypted data after the IV
+
+    if(ret!=0) {
+      TRACE_ENCLAVE("couldnt encrypt data: %d", ret);
+    }
+    
+    *out_data = output_data;
+    *out_data_len = data_size+IV_SIZE;
+    
+    mbedtls_aes_free(&aescontext);
+
+    return 0;
+}
+
+
+
+extern"C" int unseal_bytes(const uint8_t* data, size_t data_size, uint8_t** out_data, size_t* out_data_len)
+{
+  int ret;
+  
+  if ((data_size-IV_SIZE) % CIPHER_BLOCK_SIZE != 0)
+    {  TRACE_ENCLAVE("Bad input: the data size must be a multiple of %d.", CIPHER_BLOCK_SIZE);
+       return 1;
+    }
+    
+    const uint8_t* iv = data;
+    data += IV_SIZE;
+    data_size -= IV_SIZE;
+  
+  // get key
+    int seal_policy = OE_SEAL_POLICY_PRODUCT; // or POLICY_UNIQUE;
+    uint8_t* seal_key;    
+    size_t seal_key_size; 
+    uint8_t* key_info;    
+    size_t key_info_size; 
+    oe_result_t result;
+
+    result = oe_get_seal_key_by_policy(
+      (oe_seal_policy_t)seal_policy, &seal_key, &seal_key_size, &key_info, &key_info_size);
+    if (result != OE_OK)
+      {
+        TRACE_ENCLAVE("got error from get_seal_key_by_policy: %s", (char*)oe_result_str(result));
+        return ret;
+      }
+
+
+    uint8_t* output_data = (uint8_t*)oe_host_malloc(data_size);
+    if(output_data == NULL)
+      {
+        TRACE_ENCLAVE("Error: malloc failed");
+        return 1;
+      }
+    memset(output_data, 0, data_size);
+    
+    uint8_t local_iv[IV_SIZE];
+    memcpy(local_iv, iv, IV_SIZE);
+
+    // decrypt message ------------------------------
+
+    mbedtls_aes_context aescontext;
+    mbedtls_aes_init(&aescontext);
+    mbedtls_aes_setkey_dec(&aescontext, seal_key, seal_key_size*8);
+
+    ret = mbedtls_aes_crypt_cbc(
+        &aescontext,
+        MBEDTLS_AES_DECRYPT,
+        data_size,        // input data length in bytes,
+        local_iv,        // Initialization vector (updated after use)
+        data,
+        output_data); 
+
+    if(ret!=0) {
+      TRACE_ENCLAVE("couldnt decrypt data: %d", ret);
+    }
+    
+    
+    *out_data = output_data;
+    *out_data_len = data_size;
+    
+    mbedtls_aes_free(&aescontext);
+
+    return 0;
+}
+
+
 Attestation::Attestation(Crypto* crypto, uint8_t* enclave_mrsigner)
 {
     m_crypto = crypto;
@@ -25,7 +214,7 @@ bool Attestation::generate_remote_report(
     uint8_t sha256[32];
     oe_result_t result = OE_OK;
     uint8_t* temp_buf = NULL;
-
+    
     if (m_crypto->Sha256(data, data_size, sha256) != 0)
     {
         goto exit;
@@ -57,6 +246,8 @@ bool Attestation::generate_remote_report(
     *remote_report_buf = temp_buf;
     ret = true;
     TRACE_ENCLAVE("generate_remote_report succeeded.");
+
+
 exit:
     return ret;
 }
