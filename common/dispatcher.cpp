@@ -93,7 +93,7 @@ int ecall_dispatcher::get_remote_report_with_pubkey(
     uint8_t* key_buf = NULL;
     int ret = 1;
 
-    TRACE_ENCLAVE("get_remote_report_with_pubkey");
+    // TRACE_ENCLAVE("get_remote_report_with_pubkey");
     if (m_initialized == false)
     {
         TRACE_ENCLAVE("ecall_dispatcher initialization failed.");
@@ -130,7 +130,6 @@ int ecall_dispatcher::get_remote_report_with_pubkey(
         *key_size = sizeof(pem_public_key);
 
         ret = 0;
-        TRACE_ENCLAVE("get_remote_report_with_pubkey succeeded");
     }
     else
     {
@@ -176,7 +175,6 @@ int ecall_dispatcher::verify_report_and_set_pubkey(
         goto exit;
     }
     ret = 0;
-    TRACE_ENCLAVE("verify_report_and_set_pubkey succeeded.");
 
 exit:
     return ret;
