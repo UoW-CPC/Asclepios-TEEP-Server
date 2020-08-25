@@ -5,6 +5,8 @@ import cbor
 import binascii
 
 import Crypto.Hash.SHA256 as SHA256
+import Crypto.PublicKey.RSA as RSA
+import Crypto.Cipher.PKCS1_OAEP as PKCS1_OAEP # or PKCS1_v1_5
 
 from lib import *
 
@@ -87,8 +89,24 @@ python -c 'import simple; print(simple.ask({"hello":"word"}))'
 python -c 'import simple; simple.test()'
 """
 def test():
-    import binascii
+    # Ask the remote TEEP agent to create a new instance.
+    # It returns a pubkey and report from that instance
     ans = install('enclave_a/enclave_a.signed')
-    s = ask({'id':ans['id'], 'seal':b'1234'*4})['sealed']
-    print(binascii.hexlify(s))
+    
+    # Create a local enclave_b instance that can verify that we are talking to
+    # a true enclave_a instance with that pubkey.
+    with open('enclave_b/enclave_b.signed','rb') as f: e_binary = f.read()
+    e = create_enclave(e_binary)
+    res = verify_report_and_set_pubkey(e, ans['key'], ans['report'])
+    assert res == 0, f'could not attest that the remote machine runs in a secure environment'
+
+    # send over some data to the remote instance that only it can decrypt
+    data = f'These are my secrets encrypted to to instance {ans["id"]}'.encode()
+    pk = ans['key']; pk = pk[:pk.find(b'\0')]; pk = RSA.importKey(pk)
+    c = PKCS1_OAEP.new(pk).encrypt(data)
+
+    # we can get data back in a sealed format that it can only be
+    # unpacked by instances of type enclave_a
+    s = ask({'id':ans['id'], 'seal':c})['sealed']
+    
     print(ask({'unseal':s, 'id':ans['id']})['data'])
