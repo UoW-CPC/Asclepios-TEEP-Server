@@ -169,6 +169,20 @@ bool Crypto::Encrypt(
     }
 
     // Encrypt the data.
+
+    printf("using mbedtls_rsa_rsaes_oaep_encrypt\n");
+    res = mbedtls_rsa_rsaes_oaep_encrypt(
+        rsa_context,
+        mbedtls_ctr_drbg_random,
+        &m_ctr_drbg_contex,
+        MBEDTLS_RSA_PUBLIC,
+        NULL,
+        0,
+        data_size,
+        data,
+        encrypted_data);
+ 
+    /*    
     res = mbedtls_rsa_pkcs1_encrypt(
         rsa_context,
         mbedtls_ctr_drbg_random,
@@ -177,9 +191,11 @@ bool Crypto::Encrypt(
         data_size,
         data,
         encrypted_data);
+    */
+    
     if (res != 0)
     {
-        TRACE_ENCLAVE("mbedtls_rsa_pkcs1_encrypt failed with %d\n", res);
+        TRACE_ENCLAVE("mbedtls_rsa_XXX_encrypt failed with %d\n", res);
         goto exit;
     }
 
@@ -203,17 +219,31 @@ bool Crypto::decrypt(
     bool ret = false;
     size_t output_size = 0;
     int res = 0;
-    mbedtls_rsa_context* rsa_context;
 
     if (!m_initialized)
         goto exit;
 
-    mbedtls_pk_rsa(m_pk_context)->len = encrypted_data_size;
+    mbedtls_rsa_context* rsa_context;
     rsa_context = mbedtls_pk_rsa(m_pk_context);
-    rsa_context->padding = MBEDTLS_RSA_PKCS_V21;
+    rsa_context->len = encrypted_data_size;
+    rsa_context->padding = MBEDTLS_RSA_PKCS_V21; // for OAEP
     rsa_context->hash_id = MBEDTLS_MD_SHA256;
 
     output_size = *data_size;
+    /*
+    printf("using mbedtls_rsa_rsaes_oaep_decrypt\n");
+    res = mbedtls_rsa_rsaes_oaep_decrypt(
+        rsa_context,
+        mbedtls_ctr_drbg_random,
+        &m_ctr_drbg_contex,
+        MBEDTLS_RSA_PRIVATE,
+        NULL,
+        0,
+        &output_size,
+        encrypted_data,
+        data,
+        output_size);
+    */
     res = mbedtls_rsa_pkcs1_decrypt(
         rsa_context,
         mbedtls_ctr_drbg_random,
@@ -223,9 +253,10 @@ bool Crypto::decrypt(
         encrypted_data,
         data,
         output_size);
+    
     if (res != 0)
     {
-        TRACE_ENCLAVE("mbedtls_rsa_pkcs1_decrypt failed with %d\n", res);
+        TRACE_ENCLAVE("mbedtls_rsa_XXX_decrypt failed with %04x\n", -res);
         goto exit;
     }
     *data_size = output_size;

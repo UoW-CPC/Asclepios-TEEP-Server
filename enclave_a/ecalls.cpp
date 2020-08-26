@@ -27,7 +27,11 @@ enclave_config_data_t config_data = {g_enclave_secret_data,
 
 // Declare a static dispatcher object for enabling
 // for better organizing enclave-wise global variables
+
 static ecall_dispatcher dispatcher("Enclave1", &config_data);
+
+extern "C" ecall_dispatcher* get_dispatcher() { return &dispatcher;  }
+
 const char* enclave_name = "Enclave1";
 /**
  * Return the public key of this enclave along with the enclave's remote report.

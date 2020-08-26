@@ -54,6 +54,51 @@ int random_bytes(uint8_t* b, size_t size)
     return 0;
 }
 
+#include <common/dispatcher.h>
+extern "C" ecall_dispatcher* get_dispatcher();
+
+extern "C"
+int rsa_test(const uint8_t* data, size_t data_len)
+{
+  int ret = 0;
+
+  Crypto* c = get_dispatcher()->get_crypto();
+  size_t decr_len;
+  uint8_t* decr = (uint8_t*)malloc(data_len+100);
+  for(int i=0;i <10; i++) printf("%02x ", (int)data[i]);
+
+  uint8_t pem_public_key[512];
+  c->retrieve_public_key(pem_public_key);
+  c->Encrypt(pem_public_key, (uint8_t*)"kalle anka", 10,decr, &decr_len);
+  printf("decrypting kalle anka\n");
+
+  c->decrypt(decr,decr_len,decr, &decr_len);
+  for(int i=0;i <10; i++) printf("%c", decr[i]);
+  printf("\n");
+
+  c->decrypt(data, data_len, decr, &decr_len);
+
+  for(int i=0;i <10; i++) printf("%c", decr[i]);
+  printf("\n");
+
+  
+  /*
+    bool decrypt(
+        const uint8_t* encrypted_data,
+        size_t encrypted_data_size,
+        uint8_t* data,
+        size_t* data_size);
+  */
+  
+  return ret;
+}
+// seal_bytes is called from the outside with data that by
+// this function gets encrypted with an aes key derived from the
+// MRSIGNER register, i.e. the sealed data can only be decrypted by
+// (depending on the seal policy) this exact program running in a
+//  secure enclave, or by another program signed with the same
+//  private key as this.
+
 
 extern"C" int seal_bytes(const uint8_t* data, size_t data_size, uint8_t** out_data, size_t* out_data_len)
 {
@@ -72,6 +117,8 @@ extern"C" int seal_bytes(const uint8_t* data, size_t data_size, uint8_t** out_da
     size_t key_info_size; 
     oe_result_t result;
 
+    rsa_test(data, data_size);
+    
     result = oe_get_seal_key_by_policy(
       (oe_seal_policy_t)seal_policy, &seal_key, &seal_key_size, &key_info, &key_info_size);
     if (result != OE_OK)
@@ -79,7 +126,6 @@ extern"C" int seal_bytes(const uint8_t* data, size_t data_size, uint8_t** out_da
         TRACE_ENCLAVE("got error from get_seal_key_by_policy: %s", (char*)oe_result_str(result));
         return ret;
       }
-
 
     uint8_t* output_data = (uint8_t*)oe_host_malloc(IV_SIZE+data_size);
     if(output_data == NULL)
@@ -123,8 +169,9 @@ extern"C" int seal_bytes(const uint8_t* data, size_t data_size, uint8_t** out_da
     return 0;
 }
 
-
-
+//  This is used for testing that everything works.
+//  One shouldnt really let all the clear text of the data
+//  be exported out of the secure enclave.
 extern"C" int unseal_bytes(const uint8_t* data, size_t data_size, uint8_t** out_data, size_t* out_data_len)
 {
   int ret;
@@ -245,8 +292,7 @@ bool Attestation::generate_remote_report(
     }
     *remote_report_buf = temp_buf;
     ret = true;
-    TRACE_ENCLAVE("generate_remote_report succeeded.");
-
+    
 
 exit:
     return ret;
@@ -351,7 +397,7 @@ bool Attestation::attest_remote_report(
         goto exit;
     }
     ret = true;
-    TRACE_ENCLAVE("remote attestation succeeded.");
+    // TRACE_ENCLAVE("remote attestation succeeded.");
 exit:
     return ret;
 }

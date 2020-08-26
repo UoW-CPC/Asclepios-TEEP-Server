@@ -6,7 +6,8 @@ import binascii
 
 import Crypto.Hash.SHA256 as SHA256
 import Crypto.PublicKey.RSA as RSA
-import Crypto.Cipher.PKCS1_OAEP as PKCS1_OAEP # or PKCS1_v1_5
+import Crypto.Cipher.PKCS1_OAEP as PKCS1_OAEP
+import Crypto.Cipher.PKCS1_v1_5
 
 from lib import *
 
@@ -104,6 +105,7 @@ def test():
     data = f'These are my secrets encrypted to to instance {ans["id"]}'.encode()
     pk = ans['key']; pk = pk[:pk.find(b'\0')]; pk = RSA.importKey(pk)
     c = PKCS1_OAEP.new(pk).encrypt(data)
+    # TODO: I haven't made the enclave_a unencrypt the data yet.
 
     # we can get data back in a sealed format that it can only be
     # unpacked by instances of type enclave_a

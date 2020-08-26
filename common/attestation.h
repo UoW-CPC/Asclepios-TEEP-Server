@@ -10,8 +10,9 @@
 #define ENCLAVE_SECRET_DATA_SIZE 16
 class Attestation
 {
-  private:
+  public:
     Crypto* m_crypto;
+  private:
     uint8_t* m_enclave_mrsigner;
 
   public:

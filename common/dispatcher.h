@@ -39,7 +39,10 @@ class ecall_dispatcher
         size_t key_size,
         uint8_t* remote_report,
         size_t remote_report_size);
-
+     int rsa_test(
+        uint8_t* data, 
+        size_t data_len);
+  Crypto* get_crypto() { return m_crypto; }
   private:
     bool initialize(const char* name);
 };
