@@ -122,13 +122,18 @@ extern"C" int seal_bytes(const uint8_t* data, size_t data_size, uint8_t** out_da
     mbedtls_aes_init(&aescontext);
     mbedtls_aes_setkey_enc(&aescontext, seal_key, seal_key_size*8);
 
+     // pad to multiple of 16 for AES
+    decr_len += 1;  // add a byte (after the padding zeros) to hold the number of padbytes needed
     int pad = 16 - (decr_len % 16); pad = (pad==16)?0:pad;
+    memset(&decr[decr_len],0,pad);
+    decr[decr_len+pad-1] = pad+1;
+    decr_len += pad;
     
     ret = mbedtls_aes_crypt_cbc(
         &aescontext,
         MBEDTLS_AES_ENCRYPT,
-        decr_len + pad,  // input data length in bytes, multiple of 16 for AES
-        local_iv,        // Initialization vector (updated after use)
+        decr_len,    // input data length in bytes
+        local_iv,    // Initialization vector (updated after use)
         decr,
         output_data+IV_SIZE); // store encrypted data after the IV
 
@@ -137,7 +142,7 @@ extern"C" int seal_bytes(const uint8_t* data, size_t data_size, uint8_t** out_da
     }
     
     *out_data = output_data;
-    *out_data_len = data_size+IV_SIZE;
+    *out_data_len = decr_len + IV_SIZE;
     
     mbedtls_aes_free(&aescontext);
 
@@ -209,6 +214,9 @@ extern"C" int unseal_bytes(const uint8_t* data, size_t data_size, uint8_t** out_
     
     *out_data = output_data;
     *out_data_len = data_size;
+
+    // remove padding added in seal_bytes
+    *out_data_len -= output_data[data_size-1];
     
     mbedtls_aes_free(&aescontext);
 

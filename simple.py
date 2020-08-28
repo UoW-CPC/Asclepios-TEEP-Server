@@ -98,7 +98,7 @@ def sealingtest():
 
     # send over some data to the remote instance that only it can decrypt.
     # it can for example be a medical journal or some data that should be kept private.
-    data = f'These are my secrets encrypted to to instance {ans["id"]}'.encode()
+    data = f'These data are my secrets encrypted to to instance {ans["id"]}'.encode()
     assert len(data)<256-11, "pkcs_v1_5 message length limit exceeded with data"
     pk = RSA.importKey(trim0(ans['key']))
     c = PKCS1_v1_5.new(pk).encrypt(data)
