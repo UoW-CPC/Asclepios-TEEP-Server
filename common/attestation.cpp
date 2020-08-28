@@ -76,9 +76,11 @@ int rsa_test(const uint8_t* data, size_t data_len)
   for(int i=0;i <10; i++) printf("%c", decr[i]);
   printf("\n");
 
-  c->decrypt(data, data_len, decr, &decr_len);
+  memset(decr,0,data_len+100);
+  c->test_decrypt(data, data_len, decr, &decr_len);
 
-  for(int i=0;i <10; i++) printf("%c", decr[i]);
+  printf("decrypt: ");
+  for(int i=0;i <10; i++) printf("%d ", decr[i]);
   printf("\n");
 
   
@@ -100,6 +102,9 @@ int rsa_test(const uint8_t* data, size_t data_len)
 //  private key as this.
 
 
+// In this example, the data should be pkcs1.5 encrypted with this enclaves public key.
+// We decrypt the data, seal it with an AES seal key, and return it (for demonstation purposes)
+
 extern"C" int seal_bytes(const uint8_t* data, size_t data_size, uint8_t** out_data, size_t* out_data_len)
 {
   int ret;
@@ -117,7 +122,12 @@ extern"C" int seal_bytes(const uint8_t* data, size_t data_size, uint8_t** out_da
     size_t key_info_size; 
     oe_result_t result;
 
-    rsa_test(data, data_size);
+    uint8_t decr[256];
+    memset(decr, 0, data_size);
+    size_t decr_len = sizeof(decr);
+
+    Crypto* crypto = get_dispatcher()->get_crypto();
+    ret = crypto->test_decrypt(data, data_size, decr, &decr_len);
     
     result = oe_get_seal_key_by_policy(
       (oe_seal_policy_t)seal_policy, &seal_key, &seal_key_size, &key_info, &key_info_size);
@@ -149,16 +159,18 @@ extern"C" int seal_bytes(const uint8_t* data, size_t data_size, uint8_t** out_da
     mbedtls_aes_init(&aescontext);
     mbedtls_aes_setkey_enc(&aescontext, seal_key, seal_key_size*8);
 
+    int pad = 16 - (decr_len % 16); pad = (pad==16)?0:pad;
+    
     ret = mbedtls_aes_crypt_cbc(
         &aescontext,
         MBEDTLS_AES_ENCRYPT,
-        data_size,        // input data length in bytes,
+        decr_len + pad,  // input data length in bytes, multiple of 16 for AES
         local_iv,        // Initialization vector (updated after use)
-        data,
+        decr,
         output_data+IV_SIZE); // store encrypted data after the IV
 
     if(ret!=0) {
-      TRACE_ENCLAVE("couldnt encrypt data: %d", ret);
+      TRACE_ENCLAVE("couldnt encrypt data (len=%ld oldlen=%ld): %d", decr_len, data_size, ret);
     }
     
     *out_data = output_data;

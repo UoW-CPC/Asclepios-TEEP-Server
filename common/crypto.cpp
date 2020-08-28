@@ -206,6 +206,34 @@ exit:
     return result;
 }
 
+
+int Crypto::test_decrypt(
+    const uint8_t* encrypted_data,
+    size_t encrypted_data_size,
+    uint8_t* data,
+    size_t* data_size)
+{
+
+  mbedtls_rsa_context* rsa_context;
+
+  rsa_context = mbedtls_pk_rsa(m_pk_context);
+  rsa_context->len = encrypted_data_size;
+  rsa_context->padding = MBEDTLS_RSA_PKCS_V15; // for PKCS1 v1.5 which python-mbedtls uses
+  rsa_context->hash_id = MBEDTLS_MD_SHA256;
+
+  int ret = mbedtls_pk_decrypt(&m_pk_context,
+                     encrypted_data, encrypted_data_size,
+                     data, data_size, *data_size,
+                     mbedtls_ctr_drbg_random, &m_ctr_drbg_contex
+                     );
+
+  if (ret!=0)
+    {
+      TRACE_ENCLAVE("couldnt decrypt data: ret = -0x%04x", ret);
+    }
+
+  return ret;
+}
 /**
  * decrypt the given data using current enclave's private key.
  * Used to receive encrypted data from another enclave.

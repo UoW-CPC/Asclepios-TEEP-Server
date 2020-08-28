@@ -7,7 +7,7 @@ import binascii
 import Crypto.Hash.SHA256 as SHA256
 import Crypto.PublicKey.RSA as RSA
 import Crypto.Cipher.PKCS1_OAEP as PKCS1_OAEP
-import Crypto.Cipher.PKCS1_v1_5
+import Crypto.Cipher.PKCS1_v1_5 as PKCS1_v1_5
 
 from lib import *
 
@@ -37,12 +37,12 @@ class myresource(aiocoap.resource.Resource):
 
         elif 'seal' in input:
             (s, e) = self.enclaves[input['id']]
-            sd = seal_bytes(e, pad(input['seal'], 16))
+            sd = seal_bytes(e, input['seal'])
             output = cbor.dumps({'sealed': sd})
             
         elif 'unseal' in input:
             (s, e) = self.enclaves[input['id']]
-            d = unpad(unseal_bytes(e, input['unseal']))
+            d = unseal_bytes(e, input['unseal'])
             print(d)
             output = cbor.dumps({'data': d})
             
@@ -80,16 +80,11 @@ def install(filename):
     return cbor.loads(response.payload)
 
 
-"""
-python -c 'import simple; simple.start_server()' & 
-python -c 'import simple; print(simple.ask({"hello":"word"}))'
-"""    
 
+def trim0(b):
+    return b[:b.find(b'\0')]
 
-"""
-python -c 'import simple; simple.test()'
-"""
-def test():
+def sealingtest():
     # Ask the remote TEEP agent to create a new instance.
     # It returns a pubkey and report from that instance
     ans = install('enclave_a/enclave_a.signed')
@@ -101,14 +96,29 @@ def test():
     res = verify_report_and_set_pubkey(e, ans['key'], ans['report'])
     assert res == 0, f'could not attest that the remote machine runs in a secure environment'
 
-    # send over some data to the remote instance that only it can decrypt
+    # send over some data to the remote instance that only it can decrypt.
+    # it can for example be a medical journal or some data that should be kept private.
     data = f'These are my secrets encrypted to to instance {ans["id"]}'.encode()
-    pk = ans['key']; pk = pk[:pk.find(b'\0')]; pk = RSA.importKey(pk)
-    c = PKCS1_OAEP.new(pk).encrypt(data)
-    # TODO: I haven't made the enclave_a unencrypt the data yet.
+    assert len(data)<256-11, "pkcs_v1_5 message length limit exceeded with data"
+    pk = RSA.importKey(trim0(ans['key']))
+    c = PKCS1_v1_5.new(pk).encrypt(data)
 
     # we can get data back in a sealed format that it can only be
     # unpacked by instances of type enclave_a
     s = ask({'id':ans['id'], 'seal':c})['sealed']
-    
+
+    # Since the enclave can open sealed data, it can do things to it.
+    # Here we just return it - which is not what one should usually do.
+    # typically one would compute some statistic on a medical journal.
     print(ask({'unseal':s, 'id':ans['id']})['data'])
+
+
+
+    
+    """
+This is how one can launch a server, and call in with 
+the sealingtest defined above:
+
+    python -c 'import simple; simple.start_server()' & 
+    python -c 'import simple; simple.sealingtest()'
+"""

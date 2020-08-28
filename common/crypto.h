@@ -20,7 +20,8 @@
 
 class Crypto
 {
-  private:
+  //private:
+public:
     mbedtls_ctr_drbg_context m_ctr_drbg_contex;
     mbedtls_entropy_context m_entropy_context;
     mbedtls_pk_context m_pk_context;
@@ -79,7 +80,13 @@ class Crypto
         return m_other_enclave_pubkey;
     }
 
-    /**
+  int test_decrypt(
+    const uint8_t* encrypted_data,
+    size_t encrypted_data_size,
+    uint8_t* data,
+    size_t* data_size);
+
+  /**
      * Compute the sha256 hash of given data.
      */
     int Sha256(const uint8_t* data, size_t data_size, uint8_t sha256[32]);
