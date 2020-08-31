@@ -69,6 +69,16 @@ To write programs that install and talk to the enclaves, use the python library
 in `lib.py` which wraps the C function calls to the open enclave functions.
 
 
+# OCSP validation using openssl
+
+This shows how to validate certificates using openssl, but should be converted to
+a proper programing language.  It uses the certificates in `attic/certs`.
+
+```
+cd attic
+. ocsp_validation_with_openssl.sh
+verify www.twitter.com:443
+```
 
 # ATTENTION:
 
