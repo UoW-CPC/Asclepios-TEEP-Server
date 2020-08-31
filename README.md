@@ -1,3 +1,21 @@
+# Build
+
+To build you must set the open enclave environment variables (I do it in .bashrc):
+
+```
+. /opt/openenclave/share/openenclave/openenclaverc
+```
+
+Then just do `make`
+
+# Demo requirements
+
+To install the required libraries, do
+```
+conda install pip ipython pycryptodome 
+pip install cbor aiocoap
+```
+
 # TEEP sample
 
 This directory contains code to launch secure enclaves via a coap server that listens to
