@@ -18,7 +18,7 @@ to legitimate secure instances.
 
 To install the enclave_a on the server, and attest it, do
 
-    python -c 'import simple; simple.test()'
+    python -c 'import simple; simple.sealingtest()'
 
 
 In `simple.test()`, the binary for `enclave_a` is sent to the coap-server in a TEEP install message.
