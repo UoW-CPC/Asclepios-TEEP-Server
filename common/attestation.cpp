@@ -216,7 +216,8 @@ extern"C" int unseal_bytes(const uint8_t* data, size_t data_size, uint8_t** out_
     *out_data_len = data_size;
 
     // remove padding added in seal_bytes
-    *out_data_len -= output_data[data_size-1];
+    if(data_size >= output_data[data_size-1])
+        *out_data_len -= output_data[data_size-1];
     
     mbedtls_aes_free(&aescontext);
 
