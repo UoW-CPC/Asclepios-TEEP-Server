@@ -2,8 +2,6 @@
 // Licensed under the MIT License.
 
 enclave {
-    from "openenclave/edl/attestation.edl" import *;
-    from "openenclave/edl/syscall.edl" import *;
     from "openenclave/edl/sgx/platform.edl" import *;
 
     trusted {
