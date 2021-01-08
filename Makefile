@@ -1,6 +1,10 @@
 # Copyright (c) Open Enclave SDK contributors.
 # Licensed under the MIT License.
 
+OE_CRYPTO_LIB := mbedtls
+export OE_CRYPTO_LIB
+
+
 .PHONY: all build clean run
 
 all: build
