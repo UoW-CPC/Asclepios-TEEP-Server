@@ -6,6 +6,8 @@ include ../config.mk
 CFLAGS=$(shell pkg-config oeenclave-$(C_COMPILER) --cflags)
 CXXFLAGS=$(shell pkg-config oeenclave-$(CXX_COMPILER) --cflags)
 LDFLAGS=$(shell pkg-config oeenclave-$(CXX_COMPILER) --libs)
+INCDIR=$(shell pkg-config oeenclave-$(C_COMPILER) --variable=includedir)
+CRYPTO_LDFLAGS=$(shell pkg-config oeenclave-$(COMPILER) --variable=${OE_CRYPTO_LIB}libs)
 
 all:
 	$(MAKE) genkey
@@ -34,7 +36,7 @@ build:
 	@ echo "Compilers used: $(CC), $(CXX)"
 	$(CXX) -g -c $(CXXFLAGS) $(INCLUDES) -I. -I.. -std=c++11 -DOE_API_VERSION=2 ecalls.cpp ../common/attestation.cpp ../common/crypto.cpp ../common/dispatcher.cpp
 	$(CC) -g -c $(CFLAGS) $(CINCLUDES) -I.. -DOE_API_VERSION=2 ../common/remoteattestation_t.c
-	$(CXX) -o enclave_b attestation.o crypto.o ecalls.o dispatcher.o remoteattestation_t.o $(LDFLAGS)
+	$(CXX) -o enclave_b attestation.o crypto.o ecalls.o dispatcher.o remoteattestation_t.o $(LDFLAGS) $(CRYPTO_LDFLAGS)
 
 sign:
 	oesign sign -e enclave_b -c enc.conf -k private.pem
