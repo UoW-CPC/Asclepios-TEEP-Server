@@ -1,4 +1,4 @@
-## Running the demo in a docker container
+## Running the demo in a single docker container
 
 1. Build the docker image
 
@@ -15,7 +15,7 @@
    prevent the accumulation of a lot of garbage instances.
 
        docker run  --device /dev/sgx -v $(pwd):/home/teep/teep.git \
-         --rm -ti --name myteep myteep:v1
+         --rm -ti myteep:v1
 
 3. Inside the container, you can get a squeaky clean version of the
    repository by cloning it.  Step into the cloned repo and build.
@@ -29,10 +29,10 @@
    client.
 
        export AZDCAP_DEBUG_LOG_LEVEL=0
-       python -c 'import simple; simple.start_server()' &
+       python -c 'import simple; simple.start_server(port=7777)' &
       
        sleep 1
-       python -c 'import simple; simple.sealingtest()'
+       python -c 'import simple; simple.sealingtest("coap://127.0.0.1:7777/teep")'
       
       
    This should print out
@@ -51,3 +51,27 @@
    plain text, they show that the server was able to seal the data to
    the platform and later decrypt it and return it to the client over
    an encrypted channel.
+
+
+
+
+## Running the server in one docker instance and the client in another
+
+Get the host's public ip:
+
+    # sudo apt install -y iproute2
+    hostip=$(ip route get 1.1.1.1 | cut -d\  -f7)
+    echo hostip=$hostip
+
+Start the server, and publish the intance's port on some host port:
+
+    docker run  --device /dev/sgx -v $(pwd):/home/teep/teep.git \
+        --publish $hostip:7766:7777/udp --rm -ti myteep:v1
+    git clone teep.git; cd teep; make; export AZDCAP_DEBUG_LOG_LEVEL=0
+    python -c 'import simple; simple.start_server(port=7777)'
+
+and start the client:
+
+    docker run  --device /dev/sgx -v $(pwd):/home/teep/teep.git --rm -ti myteep:v1
+    git clone teep.git; cd teep; make; export AZDCAP_DEBUG_LOG_LEVEL=0
+    python -c 'import simple; simple.sealingtest("coap://'${hostip:?}':7766/teep")'
