@@ -39,20 +39,20 @@ class myresource(aiocoap.resource.Resource):
             (s, e) = self.enclaves[input['id']]
             sd = seal_bytes(e, input['seal'])
             output = cbor.dumps({'sealed': sd})
-            
+
         elif 'unseal' in input:
             (s, e) = self.enclaves[input['id']]
             d = unseal_bytes(e, input['unseal'])
             print(d)
             output = cbor.dumps({'data': d})
-            
+
         return aiocoap.Message(code=aiocoap.CONTENT, payload=output)
 
-def start_server():
+def start_server(ip='::', port=5683):
     root = aiocoap.resource.Site()
     root.add_resource(['teep'], myresource())
     e = asyncio.get_event_loop()
-    ctx = aiocoap.Context.create_server_context(root)
+    ctx = aiocoap.Context.create_server_context(root, bind=(ip, port))
     e = asyncio.get_event_loop()
     e.create_task(ctx)
     e.run_forever()
@@ -64,18 +64,16 @@ async def put_coap(uri, data:bytes):
     msg = aiocoap.Message(uri=uri,
         code=aiocoap.PUT,
         payload=data)
-        
+
     ctx = await aiocoap.Context.create_client_context()
     return await ctx.request(msg).response
 
-def ask(query={'donald':'duck'}):
-    uri = 'coap://127.0.0.1/teep'
+def ask(uri, query={'donald':'duck'}):
     response = asyncio.run(put_coap(uri, cbor.dumps(query)))
     return cbor.loads(response.payload)
-    
-def install(filename):
+
+def install(uri, filename):
     with open(filename, 'rb') as f: binary = f.read()
-    uri = 'coap://127.0.0.1/teep'
     response = asyncio.run(put_coap(uri, cbor.dumps({'install':binary})))
     return cbor.loads(response.payload)
 
@@ -84,11 +82,11 @@ def install(filename):
 def trim0(b):
     return b[:b.find(b'\0')]
 
-def sealingtest():
+def sealingtest(uri='coap://127.0.0.1:5683/teep'):
     # Ask the remote TEEP agent to create a new instance.
     # It returns a pubkey and report from that instance
-    ans = install('enclave_a/enclave_a.signed')
-    
+    ans = install(uri, 'enclave_a/enclave_a.signed')
+
     # Create a local enclave_b instance that can verify that we are talking to
     # a true enclave_a instance with that pubkey.
     with open('enclave_b/enclave_b.signed','rb') as f: e_binary = f.read()
@@ -105,20 +103,20 @@ def sealingtest():
 
     # we can get data back in a sealed format that it can only be
     # unpacked by instances of type enclave_a
-    s = ask({'id':ans['id'], 'seal':c})['sealed']
+    s = ask(uri, {'id':ans['id'], 'seal':c})['sealed']
 
     # Since the enclave can open sealed data, it can do things to it.
     # Here we just return it - which is not what one should usually do.
     # typically one would compute some statistic on a medical journal.
-    print(ask({'unseal':s, 'id':ans['id']})['data'])
+    print(ask(uri, {'unseal':s, 'id':ans['id']})['data'])
 
 
 
-    
+
     """
-This is how one can launch a server, and call in with 
+This is how one can launch a server, and call in with
 the sealingtest defined above:
 
-    python -c 'import simple; simple.start_server()' & 
-    python -c 'import simple; simple.sealingtest()'
+    python -c 'import simple; simple.start_server(port=5683)' &
+    python -c 'import simple; simple.sealingtest("coap://127.0.0.1:5683/teep")'
 """
