@@ -15,7 +15,7 @@
    prevent the accumulation of a lot of garbage instances.
 
       docker run  --device /dev/sgx -v $(pwd):/home/teep/teep.git \
-	     --rm -ti --name myteep myteep:v1
+         --rm -ti --name myteep myteep:v1
 
 3. Inside the container, you can get a squeaky clean version of the
    repository by cloning it.  Step into the cloned repo and build.
