@@ -9,8 +9,6 @@ import Crypto.PublicKey.RSA as RSA
 import Crypto.Cipher.PKCS1_OAEP as PKCS1_OAEP
 import Crypto.Cipher.PKCS1_v1_5 as PKCS1_v1_5
 
-#from base64 import b64encode,b64decode
-
 from lib import *
 
 def catcher(f):
@@ -47,16 +45,6 @@ class myresource(aiocoap.resource.Resource):
             d = unseal_bytes(e, input['unseal'])
             print(d)
             output = cbor.dumps({'data': d})
-        
-        elif 'encrypt' in input:
-            (s, e) = self.enclaves[input['id']]
-            (output,size) = encrypt(e,input['encrypt'],input['key'],input['message'])
-            output = cbor.dumps({'message': output,'size':size})
-
-        elif 'enc_with_sealkey' in input:
-            (s, e) = self.enclaves[input['id']]
-            (output,size) = encrypt_with_sealkey(e,input['enc_with_sealkey'],input['sealed_key'],input['message'])
-            output = cbor.dumps({'message': output,'size':size})
 
         return aiocoap.Message(code=aiocoap.CONTENT, payload=output)
 
@@ -70,7 +58,6 @@ def start_server(ip='::', port=5683):
     e.run_forever()
 
 
-"""
 ### Client
 
 async def put_coap(uri, data:bytes):
@@ -98,25 +85,38 @@ def trim0(b):
 def sealingtest(uri='coap://127.0.0.1:5683/teep'):
     # Ask the remote TEEP agent to create a new instance.
     # It returns a pubkey and report from that instance
-    #ans = install(uri, '/home/ubuntu/Asclepios-TrustedAuthority/teepclient/enclave_a/enclave_a.signed')
     ans = install(uri, 'enclave_a/enclave_a.signed')
-    data = f'hello world SGX. How are you'.encode()
+
+    # Create a local enclave_b instance that can verify that we are talking to
+    # a true enclave_a instance with that pubkey.
+    with open('enclave_b/enclave_b.signed','rb') as f: e_binary = f.read()
+    e = create_enclave(e_binary)
+    res = verify_report_and_set_pubkey(e, ans['key'], ans['report'])
+    assert res == 0, f'could not attest that the remote machine runs in a secure environment'
+
+    # send over some data to the remote instance that only it can decrypt.
+    # it can for example be a medical journal or some data that should be kept private.
+    data = f'These data are my secrets encrypted to to instance {ans["id"]}'.encode()
     assert len(data)<256-11, "pkcs_v1_5 message length limit exceeded with data"
     pk = RSA.importKey(trim0(ans['key']))
     c = PKCS1_v1_5.new(pk).encrypt(data)
-    # seal data
+
+    # we can get data back in a sealed format that it can only be
+    # unpacked by instances of type enclave_a
     s = ask(uri, {'id':ans['id'], 'seal':c})['sealed']
+
     # Since the enclave can open sealed data, it can do things to it.
     # Here we just return it - which is not what one should usually do.
     # typically one would compute some statistic on a medical journal.
     print(ask(uri, {'unseal':s, 'id':ans['id']})['data'])
 
-    # encryption
-    ret = ask(uri, {'encrypt':True, 'id':ans['id'],'message':data,'key':'itzkbgulrcsjmnv'})
-    print("in simple.py - ciphertext:",ret['message']);
-    print("in simple.py - size of ciphertext:",ret['size']);
-    # decryption
-    ret = ask(uri, {'encrypt':False, 'id':ans['id'],'message':ret['message'],'key':'itzkbgulrcsjmnv'})
-    print("in simple.py - plaintext:",ret['message']);
-    print("in simple.py - size of plaintext:",ret['size']);
+
+
+
+    """
+This is how one can launch a server, and call in with
+the sealingtest defined above:
+
+    python -c 'import simple; simple.start_server(port=5683)' &
+    python -c 'import simple; simple.sealingtest("coap://127.0.0.1:5683/teep")'
 """
