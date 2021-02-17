@@ -6,6 +6,7 @@
 
 
 FROM ubuntu:18.04
+#FROM python:3.7.5-slim
 
 RUN apt update && apt upgrade -y && apt install -y build-essential git sudo wget
 
@@ -18,8 +19,12 @@ ENV USER teep
 RUN useradd -m -G sudo $USER; \
    sed -ie 's@%sudo.ALL=(ALL:ALL) ALL@%sudo   ALL=(ALL:ALL) NOPASSWD:ALL@' /etc/sudoers
 
-USER $USER
 WORKDIR /home/$USER
+RUN mkdir teep-deployer
+COPY entrypoint.sh teep-deployer/entrypoint.sh
+#USER $USER
+#WORKDIR /home/$USER
+#ADD . $CONTAINER_HOME/teepdeployer
 
 #
 # Install OpenEnclave
@@ -45,22 +50,41 @@ RUN \
 #  Install python Conda-distribution
 #
 
-RUN \
-    wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh; \
-    chmod a+x  Miniconda3-latest-Linux-x86_64.sh; \
-    ./Miniconda3-latest-Linux-x86_64.sh -b; \
-    \
-    . ~/miniconda3/bin/activate; \
-    conda init bash; \
-    conda update -y conda
+#RUN \
+#    wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh; \
+#    chmod a+x  Miniconda3-latest-Linux-x86_64.sh; \
+#    ./Miniconda3-latest-Linux-x86_64.sh -b; \
+#    \
+#    . ~/miniconda3/bin/activate; \
+#    conda init bash; \
+#    conda update -y conda
     
 #
 #  Install asclepios-teep dependencies
 #
 
-RUN \
-    . ~/miniconda3/bin/activate; \
-    conda install -y pip ipython pycryptodome; \
-    pip install cbor aiocoap
+#RUN \
+#    . ~/miniconda3/bin/activate; \
+#    conda install -y pip ipython pycryptodome; \
+#    pip install cbor aiocoap
+    #python3 -m pip install cbor aiocoap
+RUN apt install software-properties-common -y
+RUN add-apt-repository ppa:deadsnakes/ppa
+RUN apt install python3.7 -y
 
+# Make python 3.7 the default
+RUN echo "alias python=python3.7" >> ~/.bashrc
+RUN export PATH=${PATH}:/usr/bin/python3.7
+RUN /bin/bash -c "source ~/.bashrc"
 
+# Install pip
+RUN apt install python3-pip -y
+RUN python3.7 -m pip install --upgrade pip
+RUN python3.7 -m pip install cbor aiocoap pycryptodome
+
+WORKDIR /home/$USER/teep-deployer
+#RUN sudo su; \
+#    . /opt/openenclave/share/openenclave/openenclaverc; \
+#    make
+#CMD ["pwd"]
+CMD ["./entrypoint.sh"]
