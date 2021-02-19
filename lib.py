@@ -59,7 +59,7 @@ oe.encrypt_block.argtypes = [c_void_p,
 oe.initialize_encryptor.argtypes = [c_void_p, c_uchar_p,c_size_t] # POINTER(c_uchar_p) ]
 oe.close_encryptor.argtypes = [c_void_p]
 #oe.initialize_encryptor_sealkey.argtypes = [c_void_p, c_bool, c_uchar_p, c_size_t ] # POINTER(c_uchar_p) ] # AES CBC
-oe.initialize_encryptor_sealkey.argtypes = [c_void_p, c_uchar_p, c_size_t ] # AES CCM
+oe.initialize_encryptor_sealkey.argtypes = [c_void_p, c_uchar_p, c_size_t]#,POINTER(c_uchar_p) ] # AES CCM
 
 def seal_bytes(enclave, b:bytes) -> int:
     ret = c_int32(123)
@@ -147,22 +147,6 @@ def pad(b:bytes, padding=16):
 def unpad(b:bytes):
     return b[:-b[-1]]
 
-#test only
-def get_private_key(enclave:c_void_p) -> (bytes):
-    """wrapper for the function defined in ecalls.cpp
-       and declared in remoteattestation.edl
-    """
-    print("in lib.py - get private_key")
-    key = c_uint8_p()
-    keylen = c_size_t(0)
-
-    oe.retrieve_private_key(enclave,byref(key),byref(keylen));
-    
-    b = bytes(key[0:keylen.value])
-    print("in lib.py: key:%s",key)
-    print("in lib.py: key length:",keylen.value)
-    return b
-
 #def encrypt(enclave:c_void_p,enc:c_bool,key:c_uchar_p,message:c_uchar_p) -> (bytes,int):   
 def encrypt(enclave,enc:bool,key,message) -> (bytes,int):    
     """wrapper for the function defined in ecalls.cpp
@@ -210,8 +194,8 @@ def encrypt_with_sealkey(enclave,enc:bool,sealed_key,message) -> (bytes,int):
     #output_key = c_uchar_p()
     size = len(sealed_key)
     #oe.initialize_encryptor_sealkey(enclave,enc,cast(sealed_key,POINTER(ctypes.c_ubyte)),size)#,byref(output_key)) # AES CBC
-    oe.initialize_encryptor_sealkey(enclave,cast(sealed_key,POINTER(ctypes.c_ubyte)),size) # AES CCM
-    #print("in lib.py - encrypted_with_sealkey func - sealed key:{} (length:{}),unsealed key:{} (length:{})",sealed_key,len(sealed_key),cast(output_key,c_char_p).value,len(cast(output_key,c_char_p).value))
+    oe.initialize_encryptor_sealkey(enclave,cast(sealed_key,POINTER(ctypes.c_ubyte)),size)#,byref(output_key)) # AES CCM
+    #logger.debug("in lib.py - encrypted_with_sealkey func - sealed key:{} (length:{}),unsealed key:{} (length:{})",sealed_key,len(sealed_key),cast(output_key,c_char_p).value,len(cast(output_key,c_char_p).value))
     
     # encryption
     output_buf = c_uchar_p()
@@ -227,5 +211,5 @@ def encrypt_with_sealkey(enclave,enc:bool,sealed_key,message) -> (bytes,int):
     else:
         logger.debug("teep server - lib.py: plaintext:%s, length:%s",cast(output_buf,c_char_p).value,output_len.value)
         message_output = cast(output_buf,c_char_p).value
-    
+   
     return message_output,output_len.value
