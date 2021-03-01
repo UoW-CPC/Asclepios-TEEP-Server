@@ -149,9 +149,28 @@ def unpad(b:bytes):
 
 #def encrypt(enclave:c_void_p,enc:c_bool,key:c_uchar_p,message:c_uchar_p) -> (bytes,int):   
 def encrypt(enclave,enc:bool,key,message) -> (bytes,int):    
-    """wrapper for the function defined in ecalls.cpp
-       and declared in remoteattestation.edl
+    """ Encrypt/ decrypt data using SGX enclave
+    This function is only for testing, and should not be used in order to avoid transmitting the encryption/ encryption key in plaintext.
+
+    Parameters
+    ----------
+    enclave : void pointer
+        The SGX enclave
+    enc : boolean
+        true if encrypting, false if decrypting
+    key : unsigned char array
+        The key for encrypting/ decrypting
+    message : unsigned char array
+        The input data. It is the plaintext if enc=true, the ciphertext if enc=false
+
+    Returns
+    ----------
+    message_output : bytes
+        The output data. It is the ciphertext if enc=true, the plaintext if enc=false
+    output_len.value : integer
+        Size of the output data
     """
+
     logger.debug("in lib.py - encrypt:%d, enclave:%d, key:%s, data:%s, key size:%d",enc,enclave,key,message,len(key))
 
     output_buf = c_uchar_p()
@@ -191,6 +210,26 @@ def encrypt(enclave,enc:bool,key,message) -> (bytes,int):
     return message_output,output_len.value
 
 def encrypt_with_sealkey(enclave,enc:bool,sealed_key,message) -> (bytes,int):
+    """ Encrypt/ decrypt data with a sealed_key using SGX enclave
+    The cipher mode is AES CCM.
+
+    Parameters
+    ----------
+    enclave : void pointer
+        The SGX enclave
+    enc : boolean
+        true if encrypting, false if decrypting
+    sealed_key : unsigned char array
+        The sealed key for encrypting/ decrypting
+    message : unsigned char array
+        The input data. It is the plaintext if enc=true, the ciphertext if enc=false
+    Returns
+    ----------
+    message_output : bytes
+        The output data. It is the ciphertext if enc=true, the plaintext if enc=false
+    output_len.value : integer
+        Size of the output data
+    """
     #output_key = c_uchar_p()
     size = len(sealed_key)
     #oe.initialize_encryptor_sealkey(enclave,enc,cast(sealed_key,POINTER(ctypes.c_ubyte)),size)#,byref(output_key)) # AES CBC
@@ -202,7 +241,6 @@ def encrypt_with_sealkey(enclave,enc:bool,sealed_key,message) -> (bytes,int):
     size_msg =len(message)
     output_len=c_size_t(0)
     oe.encrypt_block(enclave,enc,ctypes.cast(message,ctypes.POINTER(ctypes.c_ubyte)),byref(output_buf),size_msg,byref(output_len))
-    oe.close_encryptor(enclave)
 
     if(enc):
         length = output_len.value
@@ -211,5 +249,8 @@ def encrypt_with_sealkey(enclave,enc:bool,sealed_key,message) -> (bytes,int):
     else:
         logger.debug("teep server - lib.py: plaintext:%s, length:%s",cast(output_buf,c_char_p).value,output_len.value)
         message_output = cast(output_buf,c_char_p).value
-   
+  
+    oe.close_encryptor(enclave)
+    # not implemented: free output_buf using oe.close_encryptor
+
     return message_output,output_len.value
