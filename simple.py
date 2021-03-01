@@ -70,7 +70,6 @@ def start_server(ip='::', port=5683):
     e.run_forever()
 
 
-"""
 ### Client
 
 async def put_coap(uri, data:bytes):
@@ -119,4 +118,3 @@ def sealingtest(uri='coap://127.0.0.1:5683/teep'):
     ret = ask(uri, {'encrypt':False, 'id':ans['id'],'message':ret['message'],'key':'itzkbgulrcsjmnv'})
     print("in simple.py - plaintext:",ret['message']);
     print("in simple.py - size of plaintext:",ret['size']);
-"""
