@@ -241,7 +241,8 @@ def encrypt_with_sealkey(enclave,enc:bool,sealed_key,message) -> (bytes,int):
     size_msg =len(message)
     output_len=c_size_t(0)
     oe.encrypt_block(enclave,enc,ctypes.cast(message,ctypes.POINTER(ctypes.c_ubyte)),byref(output_buf),size_msg,byref(output_len))
-
+    oe.close_encryptor(enclave)
+    
     if(enc):
         length = output_len.value
         logger.debug("teep server - lib.py: plaintext:%s,ciphertext:%s,length:%d",message,cast(output_buf,c_char_p).value,length)
@@ -250,7 +251,6 @@ def encrypt_with_sealkey(enclave,enc:bool,sealed_key,message) -> (bytes,int):
         logger.debug("teep server - lib.py: plaintext:%s, length:%s",cast(output_buf,c_char_p).value,output_len.value)
         message_output = cast(output_buf,c_char_p).value
   
-    oe.close_encryptor(enclave)
     # not implemented: free output_buf using oe.close_encryptor
 
     return message_output,output_len.value
