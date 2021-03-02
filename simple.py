@@ -58,6 +58,13 @@ class myresource(aiocoap.resource.Resource):
             (output,size) = encrypt_with_sealkey(e,input['enc_with_sealkey'],input['sealed_key'],input['message'])
             output = cbor.dumps({'message': output,'size':size})
 
+        elif 'id_exist' in input:
+            try:
+                (s, e) = self.enclaves[input['id_exist']]
+                output = cbor.dumps({'exist': 1})
+            except:
+                output = cbor.dumps({'exist': 0})
+
         return aiocoap.Message(code=aiocoap.CONTENT, payload=output)
 
 def start_server(ip='::', port=5683):
