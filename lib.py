@@ -194,6 +194,9 @@ def encrypt(enclave,enc:bool,key,message) -> (bytes,int):
     else:
         logger.debug("in lib.py: plaintext: %s, length: %s",cast(output_buf,c_char_p).value,output_len.value)
         message_output = cast(output_buf,c_char_p).value#bytes(output_buf)
+    
+    # free output_buf 
+    libc.free(output_buf)
     """
     # decryption - for testing only
     pt = c_uchar_p()
@@ -251,6 +254,7 @@ def encrypt_with_sealkey(enclave,enc:bool,sealed_key,message) -> (bytes,int):
         logger.debug("teep server - lib.py: plaintext:%s, length:%s",cast(output_buf,c_char_p).value,output_len.value)
         message_output = cast(output_buf,c_char_p).value
   
-    # not implemented: free output_buf using oe.close_encryptor
+    # free output_buf
+    libc.free(output_buf)
 
     return message_output,output_len.value
