@@ -48,17 +48,17 @@ class myresource(aiocoap.resource.Resource):
             print(d)
             output = cbor.dumps({'data': d})
         
-        elif 'encrypt' in input:
+        elif 'encrypt' in input: # encrypt/decrypt data with plain key using a SGX enclave
             (s, e) = self.enclaves[input['id']]
             (output,size) = encrypt(e,input['encrypt'],input['key'],input['message'])
             output = cbor.dumps({'message': output,'size':size})
 
-        elif 'enc_with_sealkey' in input:
+        elif 'enc_with_sealkey' in input: # encrypt/decrypt data with a sealed key using a SGX enclave
             (s, e) = self.enclaves[input['id']]
             (output,size) = encrypt_with_sealkey(e,input['enc_with_sealkey'],input['sealed_key'],input['message'])
             output = cbor.dumps({'message': output,'size':size})
 
-        elif 'id_exist' in input:
+        elif 'id_exist' in input: # verify if an enclaveid exists or not
             try:
                 (s, e) = self.enclaves[input['id_exist']]
                 output = cbor.dumps({'exist': 1})
@@ -77,6 +77,7 @@ def start_server(ip='::', port=5683):
     e.run_forever()
 
 
+"""
 ### Client
 
 async def put_coap(uri, data:bytes):
@@ -125,3 +126,4 @@ def sealingtest(uri='coap://127.0.0.1:5683/teep'):
     ret = ask(uri, {'encrypt':False, 'id':ans['id'],'message':ret['message'],'key':'itzkbgulrcsjmnv'})
     print("in simple.py - plaintext:",ret['message']);
     print("in simple.py - size of plaintext:",ret['size']);
+"""
