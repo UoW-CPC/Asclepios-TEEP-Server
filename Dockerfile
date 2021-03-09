@@ -21,6 +21,7 @@ RUN useradd -m -G sudo $USER; \
 
 WORKDIR /home/$USER
 RUN mkdir teep-deployer
+ADD . teep-deployer
 COPY entrypoint.sh teep-deployer/entrypoint.sh
 #USER $USER
 #WORKDIR /home/$USER
