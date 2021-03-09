@@ -57,8 +57,12 @@ oe.encrypt_block.argtypes = [c_void_p,
 #oe.initialize_encryptor.restype = c_void
 #oe.initialize_encryptor.argtypes = [c_void_p, c_bool, c_uchar_p,c_size_t] # POINTER(c_uchar_p) ] # AES CBC
 oe.initialize_encryptor.argtypes = [c_void_p, c_uchar_p,c_size_t] # POINTER(c_uchar_p) ]
+
+#oe.close_encryptor.restype = c_void
 oe.close_encryptor.argtypes = [c_void_p]
+
 #oe.initialize_encryptor_sealkey.argtypes = [c_void_p, c_bool, c_uchar_p, c_size_t ] # POINTER(c_uchar_p) ] # AES CBC
+#oe.initialize_encryptor_sealkey.restype = c_void
 oe.initialize_encryptor_sealkey.argtypes = [c_void_p, c_uchar_p, c_size_t]#,POINTER(c_uchar_p) ] # AES CCM
 
 def seal_bytes(enclave, b:bytes) -> int:
@@ -236,6 +240,7 @@ def encrypt_with_sealkey(enclave,enc:bool,sealed_key,message) -> (bytes,int):
     #output_key = c_uchar_p()
     size = len(sealed_key)
     #oe.initialize_encryptor_sealkey(enclave,enc,cast(sealed_key,POINTER(ctypes.c_ubyte)),size)#,byref(output_key)) # AES CBC
+    logger.debug("initializing the encryptor with sealed key")
     oe.initialize_encryptor_sealkey(enclave,cast(sealed_key,POINTER(ctypes.c_ubyte)),size)#,byref(output_key)) # AES CCM
     #logger.debug("in lib.py - encrypted_with_sealkey func - sealed key:{} (length:{}),unsealed key:{} (length:{})",sealed_key,len(sealed_key),cast(output_key,c_char_p).value,len(cast(output_key,c_char_p).value))
     
@@ -243,7 +248,9 @@ def encrypt_with_sealkey(enclave,enc:bool,sealed_key,message) -> (bytes,int):
     output_buf = c_uchar_p()
     size_msg =len(message)
     output_len=c_size_t(0)
+    logger.debug("encrypting/decrypting data with sealed key")
     oe.encrypt_block(enclave,enc,ctypes.cast(message,ctypes.POINTER(ctypes.c_ubyte)),byref(output_buf),size_msg,byref(output_len))
+    logger.debug("closing the encryptor")
     oe.close_encryptor(enclave)
     
     if(enc):
@@ -254,7 +261,8 @@ def encrypt_with_sealkey(enclave,enc:bool,sealed_key,message) -> (bytes,int):
         logger.debug("teep server - lib.py: plaintext:%s, length:%s",cast(output_buf,c_char_p).value,output_len.value)
         message_output = cast(output_buf,c_char_p).value
   
+    logger.debug("freeing the allocated memory")
     # free output_buf
     libc.free(output_buf)
-
+    
     return message_output,output_len.value
